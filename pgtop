@@ -889,15 +889,17 @@ sub GetData()
     my $proc_cmd = <<SQL;
 
 SELECT datname         AS "db",
-       procpid         AS "Id",
+       pid             AS "Id",
        usename         AS "User",
        (
-         CASE current_query
-         WHEN '<IDLE>' THEN 'Sleep'
+         CASE state
+         WHEN 'idle' THEN 'Sleep'
          ELSE 'Query'
          END
        )               AS "Command",
-       current_query   AS "Info",
+       query           AS "Info",
+       ROUND(EXTRACT(EPOCH FROM NOW() - query_start))
+                       AS "Time",
        'local'         AS "Host"
   FROM pg_stat_activity
 SQL
