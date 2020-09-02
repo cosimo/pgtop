@@ -32,13 +32,13 @@ our $VERSION = '0.10';
 my $debug = 0;
 
 my $START_TIME = time();
-my $WIN = ($^O eq 'MSWin32') ? 1 : 0;
+my $is_windows = $^O eq 'MSWin32';
 
 ## Test for color support.
 
 eval { require Term::ANSIColor; };
 my $HAS_COLOR = $@ ? 0 : 1;
-$HAS_COLOR = 0 if $WIN;
+$HAS_COLOR = 0 if $is_windows;
 
 ## Test of Time::HiRes support
 
@@ -47,7 +47,7 @@ my $HAS_TIME = $@ ? 0 : 1;
 
 ## Try to lower our priority (which, who, pri)
 
-setpriority(0,0,10) unless $WIN;
+setpriority(0, 0, 10) unless $is_windows;
 
 ## Prototypes
 
@@ -98,7 +98,7 @@ my %dbcache = (); ## The db cache.  This should be merged at some point.
 
 my (%STATUS, %OLD_STATUS); # header stuff.
 
-my $CLEAR = $WIN ? '': `clear`;
+my $CLEAR = $is_windows ? '': `clear`;
 
 ## Term::ReadKey values
 
@@ -636,16 +636,11 @@ exit;
 
 sub Clear()
 {
-    if (not $WIN)
-    {
-        print "$CLEAR"
-    }
-    else
-    {
-        print "\n" x 90; ## dumb hack for now. Anyone know how to
+    print $is_windows
+        ? "\n" x 90      ## dumb hack for now. Anyone know how to
                          ## clear the screen in dos window on a Win32
                          ## system??
-    }
+        : "$CLEAR";
 }
 
 my $last_time;
