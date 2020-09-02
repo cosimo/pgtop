@@ -1,0 +1,21 @@
+0.05 (29 Jul 2008):
+
+  Fix for #38021 (batchmode fails with undefined subroutine).
+  http://rt.cpan.org/Public/Bug/Display.html?id=38021
+
+0.04:
+
+  Fixed annoying "Division by zero" errors.
+
+0.03:
+
+  Removed wrong requirement of DBD::mysql, replaced with DBD::Pg.
+
+0.02:
+
+  First working version. Several things don't work yet,
+  but something is already visible.
+  
+0.01:
+
+  None. Initial release.

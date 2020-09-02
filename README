@@ -1,0 +1,61 @@
+README for pgtop version 0.05
+=============================
+
+WEB
+
+  http://search.cpan.org
+
+MAILING LIST
+
+  None
+
+ABOUT
+
+  pgtop is a PostgreSQL clone for `mytop', which in turn, is a `top' clone for MySQL
+
+  pgtop is a console-based (non-gui) tool for monitoring the threads
+  and overall performance of PostgreSQL 7.2+. It
+  runs on most Unix systems which have Perl, DBI, and Term::ReadKey
+  installed. And with Term::ANSIColor installed you even get color.
+
+  For more detailed information, look at the `mytop' page on sourceforge.net:
+  http://mytop.sourceforge.net/
+
+WARNING
+
+  pgtop is a quick & dirty hack over `mytop', and not all MySQL concepts map very
+  well on PostgreSQL architecture and statistics collector. So don't expect a
+  good quality out of this little hack... 
+
+  And, you should probably look for `ptop'.
+
+INSTALLATION
+
+  tar -zxvf pgtop-<version>.tar.gz
+  cd pgtop-<version>
+  perl Makefile.PL
+  make
+  make test
+  make install
+
+  There's no test, actually.
+
+DOCUMENTATION
+
+  man pgtop
+  perldoc pgtop
+
+AUTHOR
+
+  Cosimo Streppone <cosimo@cpan.org>
+    inspired (and most of code) by `mytop' author
+    Jeremy D. Zawodny <Jeremy@Zawodny.com>
+
+COPYRIGHT
+
+  pgtop is licensed under the GNU General Public License version
+  2. For the full license information, please visit
+
+  http://www.gnu.org/copyleft/gpl.html
+
+__END__
