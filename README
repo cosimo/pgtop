@@ -1,17 +1,7 @@
-README for pgtop version 0.05
-=============================
+pgtop version 0.10
+==================
 
-WEB
-
-  http://search.cpan.org
-
-MAILING LIST
-
-  None
-
-ABOUT
-
-  pgtop is a PostgreSQL clone for `mytop', which in turn, is a `top' clone for MySQL
+  pgtop is a PostgreSQL clone of `mytop', which in turn is a `top' clone for MySQL
 
   pgtop is a console-based (non-gui) tool for monitoring the threads
   and overall performance of PostgreSQL 7.2+. It
@@ -23,9 +13,9 @@ ABOUT
 
 WARNING
 
-  pgtop is a quick & dirty hack over `mytop', and not all MySQL concepts map very
-  well on PostgreSQL architecture and statistics collector. So don't expect a
-  good quality out of this little hack... 
+  pgtop is a quick & dirty hack over `mytop', and not all MySQL concepts map
+  very well onto PostgreSQL architecture and statistics collector. So don't
+  expect a good quality out of this little hack...
 
   And, you should probably look for `ptop'.
 
@@ -38,7 +28,7 @@ INSTALLATION
   make test
   make install
 
-  There's no test, actually.
+  There's no tests, actually.
 
 DOCUMENTATION
 
@@ -57,5 +47,3 @@ COPYRIGHT
   2. For the full license information, please visit
 
   http://www.gnu.org/copyleft/gpl.html
-
-__END__

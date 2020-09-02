@@ -1441,39 +1441,32 @@ B<pgtop> [options]
 =head1 AVAILABILITY
 
 The latest version of B<pgtop> is available from
-http://search.cpan.org/search?query=pgtop
+L<https://metacpan.org/author/COSIMO> or on github
+at L<https://github.com/cosimo/pgtop>.
 
 =head1 REQUIREMENTS
 
 In order for B<pgtop> to function properly, you must have the
 following:
 
-  * Perl 5.005 or newer
+  * Perl 5.014 or newer
   * Getopt::Long
-  * DBI and DBD::mysql
-  * Term::ReadKey from CPAN
+  * DBI and DBD::Pg
+  * Term::ReadKey
 
-Most systems are likely to have all of those installed--except for
-Term::ReadKey. You will need to pick that up from the CPAN. You can
-pick up Term::ReadKey here:
-
-    http://search.cpan.org/search?dist=Term-ReadKey
+Most systems are likely to have all of those installed or readily available.
 
 And you obviously need access to a PostgreSQL server (version 7.2+)
 with the necessary security to access the I<pg_stat*> relations. 
-
-If you are a Windows user, using ActiveState's Perl, you can use PPM
-(the Perl Package Manager) to install the DBD::Pg and Term::ReadKey
-modules.
 
 =head2 Optional Color Support
 
 In additon, if you want a color B<mytop> (recommended), install
 Term::ANSIColor from the CPAN:
 
-    http://search.cpan.org/search?dist=ANSIColor
+    https://metacpan.org/module/Term::ANSIColor
 
-Once you do, B<mytop> will automatically use it. However, color is not
+Once you do, B<pgtop> will automatically use it. However, color is not
 yet working on Windows. Patches welcome. :-)
 
 =head2 Optional Hi-Res Timing
@@ -1522,7 +1515,7 @@ summarize the information from them in a useful format.
 =head2 WHAT FOLLOWS REFERS TO MYTOP
 
 What you read from now on has not been revised, and refers
-to original utility `mytop'.
+to the original utility C<mytop>.
 
 =head2 The Display
 
