@@ -1,6 +1,4 @@
 #!/usr/bin/perl
-#
-# $Id: pgtop 86 2008-07-29 20:07:45Z Cosimo $
 
 =pod
 
@@ -12,17 +10,26 @@ pgtop - display PostgreSQL performance info like `top'
 
 ## most of the POD is at the bottom of the file
 
-use 5.005;
+BEGIN {
+    $| = 1;
+    $0 = 'pgtop';
+}
+
+use 5.014;
 use strict;
+use open qw( :encoding(UTF-8) :std );
+use utf8;
+use warnings qw( FATAL utf8 );
+use autodie;
+
+use Data::Dumper;
 use DBI;
 use Getopt::Long;
 use Socket;
 use Term::ReadKey;
 
-$main::VERSION = '0.05';
-
-$|=1;
-$0 = 'pgtop';
+our $VERSION = '0.10';
+my $debug = 0;
 
 my $START_TIME = time();
 my $WIN = ($^O eq 'MSWin32') ? 1 : 0;
@@ -37,7 +44,6 @@ $HAS_COLOR = 0 if $WIN;
 
 eval { require Time::HiRes };
 my $HAS_TIME = $@ ? 0 : 1;
-my $debug = 0;
 
 ## Try to lower our priority (which, who, pri)
 
@@ -96,8 +102,9 @@ my $CLEAR = $WIN ? '': `clear`;
 
 ## Term::ReadKey values
 
-my $RM_RESET   = 0;
-my $RM_NOBLKRD = 3; ## using 4 traps Ctrl-C :-(
+my $RM_RESET    = 0;
+my $RM_PASSWORD = 2;
+my $RM_NOBLKRD  = 3; # using 4 traps Ctrl-C
 
 ## Read the user's config file, if it exists.
 
@@ -212,9 +219,9 @@ else
 if ($config{prompt})
 {
     print "Password: ";
-    ReadMode(2);
+    ReadMode($RM_PASSWORD);
     chomp($config{pass} = <STDIN>);
-    ReadMode(0);
+    ReadMode($RM_RESET);
     print "\n";
 }
 
@@ -293,7 +300,7 @@ foreach (@variables)
 ##
 #########################################################################
 
-ReadMode($RM_NOBLKRD)  unless $config{batchmode};
+ReadMode($RM_NOBLKRD) unless defined $config{batchmode};
 
 while (1)
 {
@@ -320,8 +327,9 @@ while (1)
     {
         GetData();
         last if $config{batchmode};
+        ReadMode($RM_NOBLKRD);
         $key = ReadKey($config{delay});
-        next unless $key;
+        next unless defined $key;
     }
     elsif ($config{mode} eq 'cmd_summary')
     {
@@ -358,8 +366,7 @@ while (1)
 
     if ($key eq 'D')
     {
-        require Data::Dumper;
-        print Data::Dumper::Dumper([\%config]);
+        say Data::Dumper::Dumper([\%config]);
         ReadKey(0);
     }
 
@@ -373,7 +380,7 @@ while (1)
         next;
     }
 
-    ## c - mode swtich to command summary
+    ## c - mode switch to command summary
 
     if ($key eq 'c')
     {
@@ -408,7 +415,7 @@ while (1)
     {
         ReadMode($RM_RESET);
         print RED(), "Which database (blank for all, /.../ for regex): ",
-            RESET();
+        RESET();
         $config{filter_db} = StringOrRegex(ReadLine(0));
         ReadMode($RM_NOBLKRD);
         next;
@@ -467,18 +474,6 @@ while (1)
         }
     }
 
-=cut
-    ## I - InnoDB status makes no sense on PostgreSQL
-
-    if ($key =~ 'I')
-    {
-        $config{mode} = 'innodb_status';
-        Clear() unless $config{batchmode};
-        print "InnoDB Status [hit q to exit this mode]\n";
-        next;
-    }
-=cut
-
     ## o - sort order
 
     if ($key =~ /o/)
@@ -520,8 +515,7 @@ while (1)
 
         if ($id =~ /^\d+$/)
         {
-            # TODO How to kill a process?
-            Execute("KILL $id");
+            Execute("SELECT pg_cancel_backend($id)");
         }
         else
         {
@@ -548,8 +542,7 @@ while (1)
             for my $pid (keys %ucache)
             {
                 next unless $ucache{$pid} eq $user;
-                # TODO see above about kill
-                Execute("KILL $pid");
+                Execute("SELECT pg_cancel_backend($pid)");
                 select(undef, undef, undef, 0.2);
             }
         }
@@ -573,7 +566,7 @@ while (1)
         FullQueryInfo($id);
         ReadMode($RM_NOBLKRD);
         print RED(), "-- paused. press any key to resume or (e) to explain --",
-            RESET();
+        RESET();
         my $key = ReadKey(0);
 
         if ($key eq 'e')
@@ -989,17 +982,9 @@ SQL
     {
         # Check to see if we can skip out.  We skip out if we know the
         # given line doesn't match.
-
-# TODO
-#        #next if (($thread->{Command} eq "Sleep")
-#        next if (($thread->{Command} eq 'Sleep')
-#                 and
-#                 (not $config{idle}));
-#
-# TODO
-#        next if (($thread->{Command} eq "Binlog Dump")
-#                 and
-#                 (not $config{idle}));
+        next if (not $config{idle}
+                 and
+                 ($thread->{Command} eq "Binlog Dump" || $thread->{Command} eq "Sleep"));
 
         next if ($thread->{User} !~ $config{filter_user});
         next if ($thread->{db}   !~ $config{filter_db});
@@ -1279,7 +1264,7 @@ SELECT sum(seq_scan)                     AS "Slow_queries",
        sum(n_tup_del)                    AS "Com_delete"
   FROM pg_stat_user_tables
 SQL
-    
+
     $stref->{$_} = $stat->{$_}    for keys %$stat;
 
     #for(keys %$stat)
