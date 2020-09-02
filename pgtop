@@ -95,6 +95,7 @@ my %config = (
 my %qcache = ();  ## The query cache--used for full query info support.
 my %ucache = ();  ## The user cache--used for full killing by user
 my %dbcache = (); ## The db cache.  This should be merged at some point.
+my %runtime = (); ## Stores the query runtime
 
 my (%STATUS, %OLD_STATUS); # header stuff.
 
@@ -193,7 +194,6 @@ my $dsn;
 
 ## Socket takes precedence.
 
-#$dsn ="DBI:mysql:database=$config{db};mysql_read_default_group=mytop;";
 $dsn ="DBI:Pg:dbname=$config{db};";
 
 =cut
@@ -519,28 +519,50 @@ while (1)
         next;
     }
 
-    ## K - kill based on a username
-    if ($key =~ /K/)
+    ## K - query killer (all queries running longer than X seconds are killed)
+    if ($key eq 'K')
     {
         ReadMode($RM_RESET);
 
-        print RED(), "User to kill: ", RESET();
-        my $user = ReadLine(0);
+        print RED(),
+            "Kill ", BOLD(), "ALL", RESET(), RED(),
+            " queries longer than? (seconds): ", RESET();
 
-        $user =~ s/\s//g;
+        my $query_ttl = ReadLine(0);
+        $query_ttl =~ s{\D}{}gx;
 
-        if ($user =~ /^\S+$/)
-        {
-            for my $pid (keys %ucache)
-            {
-                next unless $ucache{$pid} eq $user;
-                Execute("SELECT pg_cancel_backend($pid)");
-                select(undef, undef, undef, 0.2);
+        # Won't allow users to kill queries that have been
+        # running for less than this value, for safety.
+        #
+        # Say it's 2:00 AM and I mistype 0 instead of 30 because I'm tired.
+        # All my running queries would be obliterated and I wouldn't like that.
+
+        my $min_safe_ttl = 30;
+
+        if ($query_ttl =~ m{\A \d+ \Z}x && $query_ttl > $min_safe_ttl) {
+            $query_ttl = 0 + $query_ttl;
+            my $killed = 0;
+            for my $pid (keys %runtime) {
+                if ($runtime{$pid} > $query_ttl) {
+                    # FIXME Execute("SELECT pg_cancel_backend($pid)");
+                    print "Query $pid would be killed! (runtime=$runtime{$pid} > $query_ttl)\n";
+                    select(undef, undef, undef, 0.1);
+                    $killed++;
+                }
             }
+            if ($killed == 0) {
+                print YELLOW(),
+                    "-- ",
+                    ($killed == 0 ? "no" : $killed),
+                    " ",
+                    ($killed == 1 ? "query was" : "queries were"),
+                    " killed --",
+                    RESET();
+            }
+            sleep 5;
         }
-        else
-        {
-            print RED(), "-- invalid thread id --", RESET();
+        else {
+            print RED(), "-- invalid query ttl --", RESET();
             sleep 1;
         }
 
@@ -549,7 +571,7 @@ while (1)
 
     ## f - full info
 
-    if ($key =~ /f/)
+    if ($key eq 'f')
     {
         ReadMode($RM_RESET);
         print RED(), "Full query for which thread id: ", RESET();
@@ -639,11 +661,13 @@ my $last_time;
 
 sub GetData()
 {
-    ## Get terminal info
     my $now_time;
+
     %qcache = ();  ## recycle memory
     %dbcache = ();
+    %runtime = ();
 
+    ## Get terminal info
     my ($width, $height, $wpx, $hpx, $lines_left);
 
     if (not $config{batchmode})
@@ -951,6 +975,11 @@ SQL
         $qcache{$thread->{Id}}  = $thread->{Info};
         $dbcache{$thread->{Id}} = $thread->{db};
         $ucache{$thread->{Id}}  = $thread->{User};
+
+        my $is_query_running = $thread->{Command} eq 'Query';
+        if ($is_query_running) {
+            $runtime{$thread->{Id}} = 0 + $thread->{Time};
+        }
 
     }
 
