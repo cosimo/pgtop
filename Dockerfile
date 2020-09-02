@@ -1,3 +1,22 @@
+#
+# Dockerfile for pgtop
+# ====================
+#
+# Build the docker container as:
+#
+#    docker build -t my_pgtop .
+#
+# You most probably will want to run pgtop pointing it to your database
+# rather than localhost:5432, so make sure to build a pgtoprc file
+# from the provided sample `pgtoprc.sample`. After you've done that,
+# run the docker container with:
+#
+#    cp pgtoprc.sample pgtoprc
+#
+#    # Edit the pgtoprc file to add your database host, port, name, etc..
+#    docker run --rm -it -v ./pgtoprc:/app/.pgtop my_pgtop
+#
+
 FROM ubuntu:20.04
 
 RUN apt-get update && apt-get upgrade -y

@@ -4,4 +4,6 @@ Makefile.PL
 pgtop
 README
 test.pl
+Dockerfile
+pgtoprc.sample
 META.yml                                 Module meta-data (added by MakeMaker)
