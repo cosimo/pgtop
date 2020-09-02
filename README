@@ -30,6 +30,23 @@ INSTALLATION
 
   There's no tests, actually.
 
+DOCKER
+
+  A ready-made Dockerfile is bundled in this repository.
+  If you'd like to run pgtop from the docker container, all you need to do
+  is to supply your own `.pgtop` configuration file.
+
+  Build the docker container as:
+
+    docker build -t my_pgtop .
+
+  Run is with:
+
+    docker run --rm -it -v $HOME/.pgtop:/app/.pgtop my_pgtop
+
+  Don't forget the `-it` options, or pgtop won't run with the necessary
+  terminal capabilities to display anything.
+
 DOCUMENTATION
 
   man pgtop

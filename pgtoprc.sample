@@ -1,0 +1,6 @@
+delay=5
+host=localhost
+db=postgres
+user=postgres
+pass=
+port=5432
