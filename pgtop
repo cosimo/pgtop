@@ -106,43 +106,12 @@ my $RM_RESET    = 0;
 my $RM_PASSWORD = 2;
 my $RM_NOBLKRD  = 3; # using 4 traps Ctrl-C
 
-## Read the user's config file, if it exists.
-
-my $config = "$ENV{HOME}/.pgtop";
-
-if (! -e $config)
-{
-    # Try with our brother configuration... :-)
-    $config = "$ENV{HOME}/.mytop";
-}
-
-if( -e $config )
-{
-    if (open CFG, "<$config")
-    {
-        while (<CFG>)
-        {
-            next if /^\s*$/;  ## skip blanks
-            next if /^\s*#/;  ## skip comments
-
-            chomp;
-
-            if (/(\S+)\s*=\s*(\S+)/)
-            {
-                $config{lc $1} = $2 if exists $config{lc $1};
-            }
-        }
-        close CFG;
-    }
-}
-
 ## Command-line args.
-
-use vars qw($opt_foo);
 
 Getopt::Long::Configure('no_ignore_case', 'bundling');
 
 GetOptions(
+    "config=s"            => \(my $config = "$ENV{HOME}/.pgtop"),
     "color!"              => \$config{color},
     "user|u=s"            => \$config{user},
     "pass|password|p=s"   => \$config{pass},
@@ -158,6 +127,29 @@ GetOptions(
     "prompt!"             => \$config{prompt},
     "long|!"              => \$config{long_nums},
 );
+
+## Read the user's config file, if it exists.
+
+if (! -e $config) {
+    # Try with our brother configuration... :-)
+    $config = "$ENV{HOME}/.mytop";
+}
+
+if (-e $config) {
+    if (open my $config_fh, "<", $config) {
+        while (readline $config_fh) {
+            next if /^\s*$/;  ## skip blanks
+            next if /^\s*#/;  ## skip comments
+
+            chomp;
+
+            if (/(\S+)\s*=\s*(\S+)/) {
+                $config{lc $1} = $2 if exists $config{lc $1};
+            }
+        }
+        close $config_fh;
+    }
+}
 
 ## User may have put the port with the host.
 
