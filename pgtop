@@ -25,10 +25,12 @@ use autodie;
 use Data::Dumper;
 use DBI;
 use Getopt::Long;
+use JSON;
+use LWP::UserAgent;
 use Socket;
 use Term::ReadKey;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 my $debug = 0;
 
 my $START_TIME = time();
@@ -72,30 +74,33 @@ sub cmd_q;
 ## Default Config Values
 
 my %config = (
-    delay         => 5,
-    host          => 'localhost',
-    db            => 'test',
-    user          => 'postgres',
-    pass          => '',
-    port          => 5432,
-    socket        => '',
-    batchmode     => 0,
-    header        => 1,
-    color         => 1,
-    idle          => 1,
-    prompt        => 0,
-    mode          => 'top',
-    sort          => 0,         # default or reverse sort ("s")
-    filter_user   => qr/.?/,
-    filter_db     => qr/.?/,
-    filter_host   => qr/.?/,
-    long_nums     => 0,
+    delay          => 5,
+    host           => 'localhost',
+    db             => 'test',
+    user           => 'postgres',
+    pass           => '',
+    port           => 5432,
+    socket         => '',
+    batchmode      => 0,
+    header         => 1,
+    color          => 1,
+    idle           => 1,
+    prompt         => 0,
+    mode           => 'top',
+    sort           => 0,         # default or reverse sort ("s")
+    filter_user    => qr/.?/,
+    filter_db      => qr/.?/,
+    filter_host    => qr/.?/,
+    long_nums      => 0,
+    slack_webhook  => '',
+    slow_threshold => 60,
 );
 
-my %qcache = ();  ## The query cache--used for full query info support.
-my %ucache = ();  ## The user cache--used for full killing by user
-my %dbcache = (); ## The db cache.  This should be merged at some point.
-my %runtime = (); ## Stores the query runtime
+my %qcache = ();           # The query cache--used for full query info support.
+my %ucache = ();           # The user cache--used for full killing by user
+my %dbcache = ();          # The db cache.  This should be merged at some point.
+my %runtime = ();          # Stores the query runtime
+my %historic_runtime = (); # Used to detect queries crossing the slow thresholds
 
 my (%STATUS, %OLD_STATUS); # header stuff.
 
@@ -127,12 +132,14 @@ GetOptions(
     "resolve|r"           => \$config{resolve},
     "prompt!"             => \$config{prompt},
     "long|!"              => \$config{long_nums},
+    "slow_threshold=i"    => \$config{slow_threshold},
+    "slack_webhook=s"     => \$config{slack_webhook},
 );
 
 ## Read the user's config file, if it exists.
 
 if (! -e $config) {
-    # Try with our brother configuration... :-)
+    # Try with our sister utility configuration
     $config = "$ENV{HOME}/.mytop";
 }
 
@@ -154,23 +161,19 @@ if (-e $config) {
 
 ## User may have put the port with the host.
 
-if ($config{host} =~ s/:(\d+)$//)
-{
+if ($config{host} =~ s/:(\d+)$//) {
     $config{port} = $1;
 }
 
 ## User may want to disable color.
-if ($HAS_COLOR and not $config{color})
-{
+if ($HAS_COLOR and not $config{color}) {
     $HAS_COLOR = 0;
 }
 
-if ($HAS_COLOR)
-{
+if ($HAS_COLOR) {
     import Term::ANSIColor ':constants';
 }
-else
-{
+else {
     *RESET  = sub { };
     *YELLOW = sub { };
     *RED    = sub { };
@@ -208,8 +211,7 @@ else
     $dsn .= "host=$config{host};port=$config{port}";
 }
 
-if ($config{prompt})
-{
+if ($config{prompt}) {
     print "Password: ";
     ReadMode($RM_PASSWORD);
     chomp($config{pass} = <STDIN>);
@@ -896,7 +898,6 @@ sub GetData()
 
     $lines_left -= 2;
 
-    #my $proc_cmd = "show full processlist";
     my $proc_cmd = <<SQL;
 
 SELECT datname         AS "db",
@@ -971,14 +972,14 @@ SQL
         $thread->{Info} =~ s/\s+/ /g;
 
         ## stow it in the cache
-
-        $qcache{$thread->{Id}}  = $thread->{Info};
-        $dbcache{$thread->{Id}} = $thread->{db};
-        $ucache{$thread->{Id}}  = $thread->{User};
+        my $tid = $thread->{Id};
+        $qcache{$tid} = $thread->{Info};
+        $dbcache{$tid} = $thread->{db};
+        $ucache{$tid} = $thread->{User};
 
         my $is_query_running = $thread->{Command} eq 'Query';
         if ($is_query_running) {
-            $runtime{$thread->{Id}} = 0 + $thread->{Time};
+            track_query_runtime($thread);
         }
 
     }
@@ -1030,6 +1031,8 @@ SQL
             print YELLOW() if $thread->{Command} eq 'Query';
             print WHITE()  if $thread->{Command} eq 'Sleep';
             print GREEN()  if $thread->{Command} eq 'Connect';
+
+            print BOLD() if $thread->{Time} > $config{slow_threshold};
         }
 
         printf "%8d %9.9s %15.15s %10.10s %9d %6.6s %-${free}.${free}s\n",
@@ -1044,6 +1047,83 @@ SQL
 
     }
 
+}
+
+#
+# Detect when a query has become slower than our threshold.
+# Don't return true if a query is already past the slow threshold (200s f.ex.)
+# We only want to log runaway queries once, when they cross the threshold.
+#
+sub is_runaway_query {
+    my ($previous_runtime, $runtime_now) = @_;
+    my $slow_threshold = 0 + $config{slow_threshold};
+    my $has_crossed_over = $runtime_now > $slow_threshold
+        && $previous_runtime > 0
+        && $previous_runtime <= $slow_threshold;
+    return $has_crossed_over;
+}
+
+sub log_runaway_query {
+    my ($thread) = @_;
+
+    my $query = $thread->{Info};
+    $query =~ s{[\r\n\t]}{ }g;
+
+    eval {
+        open my $log_fh, '>>', 'pgtop.log';
+        print $log_fh join("\t",
+            scalar localtime(),
+            $config{host},
+            $thread->{db},
+            $thread->{User},
+            $thread->{Id},
+            $thread->{Time},
+            $query
+        ) . "\n";
+        close $log_fh;
+    };
+
+    my $msg = <<EOM;
+Slow postgres query on `$config{host}` database `$thread->{db}` for user `$thread->{User}`
+Query ID $thread->{Id} (has been running for $thread->{Time} s):
+
+```
+$thread->{Info}
+```
+EOM
+
+    slack_message($msg);
+}
+
+sub slack_message {
+    my $message = shift;
+    my $webhook_url = $config{slack_webhook};
+    return unless $webhook_url;
+    my $ua = LWP::UserAgent->new();
+    my $payload = JSON->new()->encode({ text => $message });
+    $ua->post($webhook_url, Content=>$payload);
+}
+
+sub track_query_runtime {
+    my $thread = shift;
+    my $tid = $thread->{Id};
+
+    my $previous_runtime = exists $historic_runtime{$tid}
+        ? $historic_runtime{$tid}
+        : 0;
+
+    my $runtime_now = 0 + $thread->{Time};
+
+    $runtime{$tid} = $runtime_now;
+
+    if ($runtime_now > 0) {
+        %historic_runtime = () if scalar keys %historic_runtime > 10000;
+        $historic_runtime{$tid} = $runtime_now;
+    }
+
+    if (is_runaway_query($previous_runtime, $runtime_now)) {
+        log_runaway_query($thread);
+    }
 }
 
 ###########################################################################
