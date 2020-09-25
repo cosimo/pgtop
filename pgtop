@@ -1620,7 +1620,7 @@ to the original utility C<mytop>.
 
 =head2 The Display
 
-The B<m>ytop> display screen is really broken into two parts. The top 4
+The B<mytop> display screen is really broken into two parts. The top 4
 lines (header) contain summary information about your MySQL
 server. For example, you might see something like:
 
@@ -1782,6 +1782,24 @@ with hostnames but toggling this option.
 
 Default: noresolve
 
+=item B<-slow_threshold>
+
+Defines the threshold in seconds after which a query must be considered
+slow and it's logged to a file (`pgtop.log`).
+
+Default: 60
+
+=item B<-slack_webhook>
+
+If provided, in the form of a slack incoming webhook URL (e.g.
+L<https://hooks.slack.com/services/...>), it will be used to send notifications
+for queries that are running longer than C<slow_threshold> seconds.
+
+There is no default value, so no slack notification will be sent if this
+parameter is not provided.
+
+Default: none
+
 =back
 
 Command-line arguments will always take precedence over config file
@@ -1791,12 +1809,12 @@ command-line arguments are applied.
 =head2 Config File
 
 Instead of always using bulky command-line parameters, you can also
-use a config file in your home directory (C<~/.mytop>). If present,
-B<mytop> will read it automatically. It is read I<before> any of your
+use a config file in your home directory (C<~/.pgtop>). If present,
+B<pgtop> will read it automatically. It is read I<before> any of your
 command-line arguments are processed, so your command-line arguments
 will override directives in the config file.
 
-Here is a sample config file C<~/.mytop> which implements the defaults
+Here is a sample config file C<~/.pgtop> which implements the defaults
 described above.
 
   user=root
@@ -1805,7 +1823,6 @@ described above.
   db=test
   delay=5
   port=3306
-  socket=
   batchmode=0
   header=1
   color=1
@@ -1813,7 +1830,7 @@ described above.
 
 Using a config file will help to ensure that your database password
 isn't visible to users on the command-line. Just make sure that the
-permissions on C<~/.mytop> are such that others cannot read it (unless
+permissions on C<~/.pgtop> are such that others cannot read it (unless
 you want them to, of course).
 
 You may have white space on either side of the C<=> in lines of the
@@ -1864,15 +1881,14 @@ Toggle the display of idle (sleeping) threads. If sleeping threads are
 filtered, the default sorting order is reversed so that the longest
 running queries appear at the top of the list.
 
-=item B<I>
-
-Switch to InnoDB Status mode.  The output of "SHOW INNODB STATUS" will
-be displayed every cycle.  In a future version, this may actually
-summarize that data rather than producing raw output.
-
 =item B<k>
 
 Kill a thread.
+
+=item B<K>
+
+Kill all threads/queries that have been running for longer than a given
+threshold in seconds.
 
 =item B<m>
 
@@ -1893,7 +1909,7 @@ Pause display.
 
 =item B<q>
 
-Quit B<mytop>
+Quit B<pgtop>
 
 =item B<r>
 
@@ -1916,49 +1932,15 @@ B<-noheader>.
 
 =head1 BUGS
 
-This is more of a BUGS + WishList.
-
-Some performance information is not available when talking to a
-version 3.22.x MySQL server. Additional information (about threads
-mostly) was added to the output of I<SHOW STATUS> in MySQL 3.23.x and
-B<mytop> makes use of it. If the information is not available, you
-will simply see zeros where the real numbers should be.
-
-Simply running this program will increase your overall counters (such
-as the number of queries run). But you may or may not view that as a
-bug.
-
-B<mytop> consumes too much CPU time when running (verified on older
-versions of Linux and FreeBSD). It's likely a problem related to
-Term::ReadKey. I haven't had time to investigate yet, so B<mytop> now
-automatically lowers its priority when you run it. You may also think
-about running B<mytop> on another workstation instead of your database
-server. However, C<mytop> on Solaris does B<not> have this problem.
-Newer versions of Linux and FreeBSD seem to have fixed this.
-
-You can't specify the maximum number of threads to list. If you have
-many threads and a tall xterm, B<mytop> will always try to display as
-many as it can fit.
-
-The size of most of the columns in the display has a small maximum
-width. If you have fairly long database/user/host names the display
-may appear odd. I have no good idea as to how best to deal with that
-yet. Suggestions are welcome.
-
-It'd be nice if you could just add B<mytop> configuration directives
-in your C<my.cnf> file instead of having a separate config file.
-
-You should be able to specify the columns you'd like to see in the
-display and the order in which they appear. If you only have one
-username that connects to your database, it's probably not worth
-having the User column appear, for example.
+Probably many, but C<pgtop> is still quite useful.
 
 =head1 AUTHOR
 
-pgtop was "hack-ported" from mytop by Cosimo Streppone.
+pgtop was adapted from mytop and is maintained by Cosimo Streppone
+(C<cosimo@cpan.org>).
 
 mytop was developed and is maintained by Jeremy D. Zawodny
-(Jeremy@Zawodny.com).
+(C<Jeremy@Zawodny.com>).
 
 If you wish to e-mail me regarding this software, please do!
 
@@ -1974,10 +1956,10 @@ There is huge room for improvement!
 
 =head1 COPYRIGHT
 
-Copyright (C) 2005, Cosimo Streppone.
+Copyright (C) 2005-2020, Cosimo Streppone.
 Copyright (C) 2000-2001, Jeremy D. Zawodny.
 
-=head1 CREDITS
+=head1 MYTOP CREDITS
 
 Fix a bug. Add a feature. See your name here!
 

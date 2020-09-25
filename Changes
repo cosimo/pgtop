@@ -1,3 +1,30 @@
+0.11 (25 Sep 2020):
+
+  - Added a --slow_threshold option, to consider queries slow if they have
+    been running for longer than the given value (seconds).
+    Now we highlight slow queries in bold yellow, and log all the slow queries
+    to a `pgtop.log` file.
+
+  - Added a --slack_webhook option, to automatically notify a slack channel
+    if a query crosses the slow threshold runtime value. All the information
+    about the slow query including the SQL will be included in the slack
+    message.
+
+0.10 (02 Sep 2020):
+
+  - Updated pgtop to the current decade. Now requires perl >= 5.014.
+
+  - Fixed to work with Postgres >= 9.0.
+
+  - Added a sample Dockerfile to run pgtop as Docker container
+
+  - Added a --config option, to load arbitrary config files.
+    This is useful if you want to monitor several databases at once, 
+    for example in a tmux session.
+
+  - Implemented a query killer ("K") command, to kill at once all
+    queries slower than a given threshold, in seconds.
+
 0.05 (29 Jul 2008):
 
   Fix for #38021 (batchmode fails with undefined subroutine).

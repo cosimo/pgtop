@@ -1,4 +1,4 @@
-pgtop version 0.10
+pgtop version 0.11
 ==================
 
   pgtop is a PostgreSQL clone of `mytop', which in turn is a `top' clone for MySQL
