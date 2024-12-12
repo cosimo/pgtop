@@ -17,10 +17,11 @@
 #    docker run --rm -it -v ./pgtoprc:/app/.pgtop my_pgtop
 #
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y libterm-readline-perl-perl libterm-readkey-perl libdbi-perl libdbd-pg-perl
+RUN apt-get install -y libterm-readline-perl-perl libterm-readkey-perl \
+    libdbi-perl libdbd-pg-perl libjson-perl libwww-perl
 
 ENV HOME=/app
 
